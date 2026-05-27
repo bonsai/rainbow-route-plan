@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rainbow Route — 移動シミュレーション</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#111;color:#eee;font-family:-apple-system,sans-serif;padding:16px;min-height:100vh}
+h1{font-size:20px;margin-bottom:4px;color:#fff}
+.sub{color:#888;font-size:13px;margin-bottom:16px}
+#app{display:flex;gap:16px;flex-wrap:wrap}
+#map-wrap{position:relative}
+canvas#map{border:1px solid #333;border-radius:8px;display:block;background:#1a1a2e}
+#panel{flex:1;min-width:240px}
+#panel h2{font-size:14px;color:#888;margin-bottom:8px}
+.agent-btn{display:block;width:100%;text-align:left;padding:10px 14px;margin-bottom:6px;border:1px solid #333;border-radius:8px;background:#1a1a2e;color:#eee;cursor:pointer;transition:.15s;font-size:13px}
+.agent-btn:hover{border-color:#666}
+.agent-btn.active{border-color:#fff;background:#2a2a4e}
+.agent-btn .badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;margin-right:8px;color:#fff}
+.agent-btn .desc{display:block;font-size:11px;color:#888;margin-top:2px;padding-left:52px}
+.stats{margin-top:12px;padding:12px;background:#1a1a2e;border-radius:8px;font-size:13px;line-height:1.8}
+.stats strong{color:#fff}
+.path-legend{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+.path-legend span{display:flex;align-items:center;gap:4px;font-size:12px;color:#aaa}
+.path-legend .dot{width:20px;height:3px;border-radius:2px;display:inline-block}
+.info{margin-top:12px;font-size:12px;color:#666;line-height:1.6}
+@media(max-width:720px){#app{flex-direction:column}}
+</style>
+</head>
+<body>
+<h1>🌈 Rainbow Route 移動シミュレーション</h1>
+<div class="sub">各エージェントの特性に応じた経路探索を可視化する</div>
+<div id="app">
+<div id="map-wrap">
+<canvas id="map" width="640" height="640"></canvas>
+<div class="path-legend" id="legend"></div>
+</div>
+<div id="panel">
+<h2>🚶 エージェント選択</h2>
+<div id="agent-list"></div>
+<div class="stats" id="stats">
+  <strong>🟢 全経路</strong>を表示中<br>
+  エージェントを選択するとその経路がハイライトされます
+</div>
+<div class="info">
+  <strong>凡例：</strong>
+  <span style="color:#4a4">■</span> 通路 <span style="color:#aa4">■</span> 壁
+  <span style="color:#44a">■</span> 点字ブロック <span style="color:#4aa">■</span> エレベータ
+  <span style="color:#a4a">■</span> 階段 <span style="color:#fa4">■</span> スロープ
+  <span style="color:#f44">■</span> 粗い床 <span style="color:#0ff">★</span> 改札 <span style="color:#0f0">★</span> 出口
+</div>
+</div>
+</div>
+
+<script>
+const CELL = 32
+const COLS = 20, ROWS = 20
+const LEVELS = ['1F','B1F']
+
+const T = {
+  FLOOR:0, WALL:1, TACTILE:2, ELEVATOR:3, STAIRS:4,
+  SLOPE:5, ROUGH:6, GATE:7, EXIT:8, PLATFORM:9
+}
+const C = { fill:['#2a2a3e','#1a1a2e','#1a3a3a','#1a3a4a','#3a2a3a','#2a3a2a','#3a2a2a','#2a4a3a','#2a3a4a','#2a2a3e'] }
+
+const MAP_1F = [
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,8,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,2,2,2,0,0,0,0,0,0,0,0,2,2,2,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,4,0,0,0,0,4,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,3,3,3,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,3,3,3,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,5,0,0,0,0,5,0,0,0,0,0,0,1],
+  [1,0,0,2,2,2,0,0,0,0,0,0,0,0,2,2,2,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+]
+
+const MAP_B1F = [
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,6,0,0,0,0,0,0,0,0,6,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+]
+
+const AGENTS = [
+  { id:'blind', label:'視覚障がい者', color:'#f9a825', badge:'#e65100', desc:'点字ブロックを優先。階段・狭い通路を回避。音声案内を基本モードに。', weights:{ stairs:9999, rough:2000, slope:1.0, tactile:0.1, elevator:1.0, crowd:500, narrow:2000, distance:1.0 } },
+  { id:'wheelchair', label:'車椅子', color:'#42a5f5', badge:'#1565c0', desc:'段差・階段を完全回避。幅1.2m以上・スロープを優先。', weights:{ stairs:99999, rough:5000, slope:0.3, tactile:1.0, elevator:0.5, crowd:500, narrow:9999, distance:1.0 } },
+  { id:'robot', label:'ロボット', color:'#66bb6a', badge:'#2e7d32', desc:'幅広・平滑な床を優先。混雑回避。階段不可。', weights:{ stairs:99999, rough:500, slope:1.0, tactile:1.0, elevator:0.5, crowd:2000, narrow:5000, distance:1.0 } },
+  { id:'stroller', label:'ベビーカー', color:'#ab47bc', badge:'#6a1b9a', desc:'スロープ優先。階段・段差・荒い床を回避。', weights:{ stairs:99999, rough:3000, slope:0.2, tactile:1.0, elevator:0.6, crowd:500, narrow:5000, distance:1.0 } },
+  { id:'suitcase', label:'スーツケース', color:'#ef5350', badge:'#c62828', desc:'荒い床・階段を回避。平滑な床を優先。', weights:{ stairs:99999, rough:5000, slope:1.0, tactile:1.0, elevator:0.7, crowd:300, narrow:2000, distance:1.0 } },
+  { id:'elderly', label:'高齢者', color:'#ff7043', badge:'#bf360c', desc:'階段・混雑回避。短距離優先。スロープ推奨。', weights:{ stairs:99999, rough:2000, slope:0.5, tactile:0.8, elevator:0.5, crowd:2000, narrow:1000, distance:1.5 } },
+]
+
+const canvas = document.getElementById('map')
+const ctx = canvas.getContext('2d')
+let selectedAgent = null
+let paths = {}
+let currentLevel = '1F'
+
+/* node map for pathfinding */
+function buildNodes(level) {
+  const map = level === '1F' ? MAP_1F : MAP_B1F
+  const nodes = [], edges = []
+  const id = (r,c) => `${level}-${r}-${c}`
+
+  for (let r=0; r<ROWS; r++) for (let c=0; c<COLS; c++) {
+    if (map[r][c] === T.WALL) continue
+    const tile = map[r][c]
+    const props = {}
+    if (tile === T.STAIRS) props.stairs = true
+    if (tile === T.SLOPE) props.slope = true
+    if (tile === T.TACTILE) props.tactile = true
+    if (tile === T.ELEVATOR) props.elevator = true
+    if (tile === T.ROUGH) props.rough = true
+    if (tile === T.GATE) props.gate = true
+    if (tile === T.EXIT) props.exit = true
+    nodes.push({ id:id(r,c), r, c, props, tile, level })
+  }
+
+  for (let r=0; r<ROWS; r++) for (let c=0; c<COLS; c++) {
+    if (map[r][c] === T.WALL) continue
+    const from = id(r,c)
+    for (const [dr,dc] of [[0,1],[1,0],[0,-1],[-1,0]]) {
+      const nr=r+dr, nc=c+dc
+      if (nr<0||nr>=ROWS||nc<0||nc>=COLS) continue
+      if (map[nr][nc] === T.WALL) continue
+      const to = id(nr,nc)
+      const toTile = map[nr][nc]
+      const eProps = {}
+      if (toTile === T.STAIRS) eProps.stairs = true
+      if (toTile === T.SLOPE) eProps.slope = true
+      if (toTile === T.TACTILE) eProps.tactile = true
+      if (toTile === T.ROUGH) eProps.rough = true
+      edges.push({ from, to, distance:1, props:eProps })
+    }
+  }
+
+  return { nodes, edges }
+}
+
+/* find gate and exit positions */
+function findGateExit(level) {
+  const map = level === '1F' ? MAP_1F : MAP_B1F
+  let gate=null, exit=null
+  for (let r=0; r<ROWS; r++) for (let c=0; c<COLS; c++) {
+    if (map[r][c] === T.GATE && !gate) gate = {r,c}
+    if (map[r][c] === T.EXIT && !exit) exit = {r,c}
+  }
+  return { gate, exit }
+}
+
+/* Dijkstra with agent weights */
+function findPath(graph, fromId, toId, weights) {
+  const nodeMap = {}
+  for (const n of graph.nodes) nodeMap[n.id] = n
+  const adj = {}
+  for (const n of graph.nodes) adj[n.id] = []
+  for (const e of graph.edges) {
+    if (!adj[e.from]) adj[e.from] = []
+    if (!adj[e.to]) adj[e.to] = []
+    adj[e.from].push(e)
+    adj[e.to].push({ from:e.to, to:e.from, distance:e.distance, props:e.props })
+  }
+
+  const dist = {}, prev = {}, visited = new Set()
+  for (const n of graph.nodes) dist[n.id] = Infinity
+  dist[fromId] = 0
+
+  for (let i=0; i<graph.nodes.length; i++) {
+    let u=null, minD=Infinity
+    for (const n of graph.nodes) {
+      if (!visited.has(n.id) && dist[n.id] < minD) { minD=dist[n.id]; u=n.id }
+    }
+    if (!u || u===toId) break
+    visited.add(u)
+
+    for (const e of adj[u]) {
+      const v = e.to === u ? e.from : e.to
+      if (visited.has(v)) continue
+      let w = e.distance
+      if (e.props.stairs && weights) w *= weights.stairs || 1
+      if (e.props.slope && weights) w *= weights.slope || 1
+      if (e.props.tactile && weights) w *= weights.tactile || 1
+      if (e.props.rough && weights) w *= weights.rough || 1
+      if (e.props.elevator && weights) w *= weights.elevator || 1
+      const alt = dist[u] + w
+      if (alt < dist[v]) { dist[v]=alt; prev[v]=u }
+    }
+  }
+
+  if (dist[toId] === Infinity) return null
+  const path = []
+  let cur = toId
+  while (cur && cur !== fromId) { path.unshift(cur); cur=prev[cur] }
+  path.unshift(fromId)
+  return path
+}
+
+/* connect elevator between levels */
+function connectLevels(graph1F, graphB1F) {
+  const elv1F = graph1F.nodes.filter(n => n.props.elevator)
+  const elvB1F = graphB1F.nodes.filter(n => n.props.elevator)
+  const edges = []
+  const min = Math.min(elv1F.length, elvB1F.length)
+  for (let i=0; i<min; i++) {
+    edges.push({ from:elv1F[i].id, to:elvB1F[i].id, distance:0, props:{}, level_change:true })
+    edges.push({ from:elvB1F[i].id, to:elv1F[i].id, distance:0, props:{}, level_change:true })
+  }
+  return edges
+}
+
+function simulate() {
+  const graph1F = buildNodes('1F')
+  const graphB1F = buildNodes('B1F')
+  const crossEdges = connectLevels(graph1F, graphB1F)
+
+  const geo1F = { nodes:graph1F.nodes, edges:[...graph1F.edges, ...crossEdges] }
+  const geoB1F = { nodes:graphB1F.nodes, edges:[...graphB1F.edges, ...crossEdges] }
+
+  const combined = {
+    nodes:[...graph1F.nodes, ...graphB1F.nodes],
+    edges:[...graph1F.edges, ...graphB1F.edges, ...crossEdges]
+  }
+
+  const start1F = findGateExit('1F')
+  const startB1F = findGateExit('B1F')
+
+  const allPaths = {}
+
+  for (const agent of AGENTS) {
+    const w = agent.weights
+    const start = start1F.gate ? `1F-${start1F.gate.r}-${start1F.gate.c}` : null
+    const goal1F = start1F.exit ? `1F-${start1F.exit.r}-${start1F.exit.c}` : null
+    const goalB1F = startB1F.exit ? `B1F-${startB1F.exit.r}-${startB1F.exit.c}` : null
+
+    const p1 = start && goal1F ? findPath(geo1F, start, goal1F, w) : null
+    const p2 = start && goalB1F ? findPath(combined, start, goalB1F, w) : null
+    allPaths[agent.id] = { toExit:p1, toB1F:p2 }
+  }
+
+  paths = allPaths
+  draw()
+}
+
+function draw() {
+  ctx.clearRect(0,0,640,640)
+  const map = currentLevel === '1F' ? MAP_1F : MAP_B1F
+
+  for (let r=0; r<ROWS; r++) for (let c=0; c<COLS; c++) {
+    const t = map[r][c]
+    const x=c*CELL, y=r*CELL
+    ctx.fillStyle = C.fill[t] || '#2a2a3e'
+    ctx.fillRect(x,y,CELL,CELL)
+    if (t === T.WALL) { ctx.fillStyle='#1a1a2e'; ctx.fillRect(x,y,CELL,CELL); continue }
+    if (t === T.GATE) { ctx.fillStyle='#0ff'; ctx.font='16px sans-serif'; ctx.fillText('★',x+6,y+24); continue }
+    if (t === T.EXIT) { ctx.fillStyle='#0f0'; ctx.font='16px sans-serif'; ctx.fillText('★',x+6,y+24); continue }
+    if (t === T.TACTILE) { ctx.fillStyle='#44a'; ctx.fillRect(x+4,y+4,CELL-8,CELL-8); ctx.fillStyle='#668'; ctx.fillRect(x+8,y+8,CELL-16,CELL-16); continue }
+    if (t === T.ELEVATOR) { ctx.fillStyle='#4aa'; ctx.beginPath(); ctx.arc(x+16,y+16,10,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; ctx.font='10px sans-serif'; ctx.fillText('EL',x+9,y+20); continue }
+    if (t === T.STAIRS) { ctx.fillStyle='#a4a'; ctx.beginPath(); ctx.moveTo(x+4,y+4); ctx.lineTo(x+28,y+4); ctx.lineTo(x+4,y+28); ctx.closePath(); ctx.fill(); continue }
+    if (t === T.SLOPE) { ctx.fillStyle='#fa4'; ctx.beginPath(); ctx.moveTo(x+4,y+24); ctx.lineTo(x+28,y+24); ctx.lineTo(x+24,y+8); ctx.lineTo(x+8,y+8); ctx.closePath(); ctx.fill(); continue }
+    if (t === T.ROUGH) { ctx.fillStyle='#f44'; ctx.fillRect(x+4,y+4,CELL-8,CELL-8); for(let i=0;i<4;i++){ctx.fillStyle='#822';ctx.fillRect(x+6+i*7,y+6+i*2,4,2)} continue }
+  }
+
+  /* draw grid lines */
+  ctx.strokeStyle='rgba(255,255,255,0.03)'; ctx.lineWidth=1
+  for (let r=0; r<=ROWS; r++) { ctx.beginPath(); ctx.moveTo(0,r*CELL); ctx.lineTo(640,r*CELL); ctx.stroke() }
+  for (let c=0; c<=COLS; c++) { ctx.beginPath(); ctx.moveTo(c*CELL,0); ctx.lineTo(c*CELL,640); ctx.stroke() }
+
+  /* draw level indicator */
+  ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='12px sans-serif'; ctx.fillText(currentLevel, 8, 16)
+
+  /* draw paths */
+  for (const agent of AGENTS) {
+    const p = paths[agent.id]
+    if (!p) continue
+    const pathData = currentLevel === 'B1F' ? p.toB1F : p.toExit
+    if (!pathData) continue
+
+    const isSelected = selectedAgent === agent.id
+    ctx.lineWidth = isSelected ? 4 : 2
+    ctx.globalAlpha = isSelected ? 1.0 : (selectedAgent ? 0.2 : 0.5)
+    ctx.strokeStyle = agent.color
+    ctx.beginPath()
+    let moved = false
+    for (const nodeId of pathData) {
+      const parts = nodeId.split('-')
+      if (parts[0] !== currentLevel) continue
+      const col = parseInt(parts[1]), row = parseInt(parts[2])
+      if (isNaN(col)||isNaN(row)) continue
+      if (!moved) { ctx.moveTo(col*CELL+16, row*CELL+16); moved=true }
+      else ctx.lineTo(col*CELL+16, row*CELL+16)
+    }
+    ctx.stroke()
+    ctx.globalAlpha = 1.0
+  }
+
+  /* draw start/goal markers */
+  const se = findGateExit(currentLevel)
+  if (se.gate) { ctx.fillStyle='#0ff'; ctx.beginPath(); ctx.arc(se.gate.c*CELL+16,se.gate.r*CELL+16,5,0,Math.PI*2); ctx.fill() }
+  if (se.exit) { ctx.fillStyle='#0f0'; ctx.beginPath(); ctx.arc(se.exit.c*CELL+16,se.exit.r*CELL+16,5,0,Math.PI*2); ctx.fill() }
+}
+
+function renderAgents() {
+  const list = document.getElementById('agent-list')
+  for (const agent of AGENTS) {
+    const btn = document.createElement('button')
+    btn.className = 'agent-btn'
+    btn.innerHTML = `<span class="badge" style="background:${agent.badge}">${agent.label}</span> ${agent.id}
+      <span class="desc">${agent.desc}</span>`
+    btn.addEventListener('click', () => selectAgent(agent.id))
+    list.appendChild(btn)
+  }
+}
+
+function selectAgent(id) {
+  selectedAgent = id
+  document.querySelectorAll('.agent-btn').forEach((b,i) => b.classList.toggle('active', AGENTS[i].id===id))
+  const agent = AGENTS.find(a => a.id === id)
+  const p = paths[id]
+  const stats = document.getElementById('stats')
+  if (p) {
+    const pd = currentLevel === 'B1F' ? p.toB1F : p.toExit
+    const sameLevel = pd ? pd.filter(n => n.startsWith(currentLevel)).length : 0
+    const total = pd ? pd.length : 0
+    const dist = pd ? pd.length : 0
+    stats.innerHTML = `
+      <strong>${agent.label}</strong> の経路<br>
+      総距離: ${dist} マス | 経由ノード: ${total}<br>
+      回避した地形: ${agent.weights.stairs > 1000 ? '階段 ' : ''}${agent.weights.rough > 1000 ? '粗い床 ' : ''}${agent.weights.narrow > 1000 ? '狭路 ' : ''}<br>
+      優先した地形: ${agent.weights.tactile < 0.5 ? '点字ブロック ' : ''}${agent.weights.slope < 0.5 ? 'スロープ ' : ''}${agent.weights.elevator < 1 ? 'エレベータ ' : ''}
+    `
+  }
+  draw()
+}
+
+document.getElementById('legend').innerHTML = AGENTS.map(a =>
+  `<span><span class="dot" style="background:${a.color}"></span>${a.label}</span>`
+).join('')
+
+/* level toggle */
+document.addEventListener('keydown', e => {
+  if (e.key === '1') { currentLevel='1F'; draw(); updateStats() }
+  if (e.key === '2') { currentLevel='B1F'; draw(); updateStats() }
+})
+canvas.addEventListener('click', e => {
+  const x = e.offsetX, y = e.offsetY
+  const col = Math.floor(x/CELL), row = Math.floor(y/CELL)
+  const map = currentLevel === '1F' ? MAP_1F : MAP_B1F
+  if (col>=0 && col<COLS && row>=0 && row<ROWS) {
+    const t = map[row][col]
+    const names = ['通路','壁','点字ブロック','エレベータ','階段','スロープ','粗い床','改札','出口']
+    document.getElementById('stats').innerHTML = `<strong>📍 ${names[t]||'?'}</strong>  @ ${currentLevel} (${col},${row})`
+  }
+})
+
+function updateStats() {
+  if (selectedAgent) selectAgent(selectedAgent)
+}
+
+simulate()
+renderAgents()
+</script>
+</body>
+</html>

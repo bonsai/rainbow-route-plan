@@ -1,0 +1,17 @@
+{
+  "name": "Rainbow Route — Micro Guide",
+  "short_name": "RR Guide",
+  "description": "QR を読むだけ。最適な経路を音声で案内します。",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%23000'/%3E%3Ctext x='96' y='140' font-size='140' text-anchor='middle'%3E🌈%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌈</text></svg>">
+  <title>Rainbow Route — Micro Guide</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #000;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #camera { width: 100%; height: 100%; object-fit: cover; position: fixed; top: 0; left: 0; }
+    #overlay {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 20px 24px 40px;
+      background: linear-gradient(transparent, rgba(0,0,0,.85));
+      z-index: 10;
+    }
+    #status {
+      font-size: 14px; color: rgba(255,255,255,.6);
+      margin-bottom: 8px;
+      min-height: 20px;
+    }
+    #guide {
+      font-size: 22px; font-weight: 600;
+      line-height: 1.5;
+      min-height: 2em;
+      text-shadow: 0 1px 4px rgba(0,0,0,.5);
+    }
+    #guide .dim { color: rgba(255,255,255,.5); font-weight: 400; font-size: 16px; }
+    #corner {
+      position: fixed; top: 16px; right: 16px;
+      font-size: 12px; color: rgba(255,255,255,.3);
+      z-index: 10;
+    }
+    #start-btn {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      z-index: 20;
+      background: rgba(255,255,255,.15);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 60px;
+      padding: 20px 48px;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    #start-btn:active { transform: translate(-50%, -50%) scale(.96); }
+    #start-btn.hidden { display: none; }
+    #arrow { display: inline-block; transition: transform .3s; }
+    .speaking #arrow { animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(6px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <video id="camera" autoplay playsinline muted></video>
+  <canvas id="scan-canvas" hidden></canvas>
+
+  <div id="overlay">
+    <div id="status">📷 カメラを起動してください</div>
+    <div id="guide"><span class="dim">QR を読み取ると案内を開始します</span></div>
+  </div>
+  <div id="corner">🌈 RR</div>
+
+  <button id="start-btn">📷 カメラを起動</button>
+
+  <script src="station-shinjuku.js"></script>
+  <script src="station-shibuya.js"></script>
+  <script src="sample-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

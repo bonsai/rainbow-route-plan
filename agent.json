@@ -1,0 +1,203 @@
+{
+  "agent": {
+    "id": "rainbow-route-micro-guide",
+    "name": "Rainbow Route Micro Guide",
+    "version": "0.1.0",
+    "description": "QR を読むだけ。最適なエッジを瞬時に提供する移動エージェント。",
+    "modes": {
+      "default": "audio",
+      "available": ["audio", "visual", "tactile", "text"],
+      "auto_fallback": true
+    },
+    "tracking": {
+      "method": "edge_inference",
+      "walk_speed_mps": 1.2,
+      "confirm_at_arrival": true,
+      "recalc_on_deviation": true
+    },
+    "speech": {
+      "lang": "ja-JP",
+      "rate": 0.9,
+      "pitch": 1.0,
+      "templates": {
+        "edge_start": "${direction}に進みます。${distance}メートルです。${notes}",
+        "edge_level_change": "${elevator_label}で${to_level}へ移動します。",
+        "arrival_expected": "${node_label}に到着したと思われます。到着したらQRをスキャンするか、画面をタップしてください。",
+        "arrival_confirmed": "${node_label}を確認しました。",
+        "destination_reached": "目的地、${label}に到着しました。",
+        "route_found": "${from_label}から${to_label}まで${segment_count}区間を案内します。",
+        "route_not_found": "経路が見つかりませんでした。別の場所でQRをスキャンしてください。",
+        "recalc": "経路を再計算しました。${label}から案内を再開します。",
+        "wrong_node": "現在地は経路上の次の地点ではありません。経路を再計算します。"
+      },
+      "direction_words": ["まっすぐ", "右に", "左に"],
+      "progress_bar": "🚶 ${percent}% ${bar} ${label}"
+    },
+    "user_types": {
+      "blind": {
+        "label": "視覚障がい者",
+        "default_mode": "audio",
+        "weights": {
+          "wheelchair_false": 9999,
+          "robot_caution": 0,
+          "wheelchair_easy": 1.0,
+          "tactile_block": 0.3,
+          "level_change": 20,
+          "crowd_high": 100,
+          "crowd_medium": 30
+        },
+        "prefer": ["tactile_block"],
+        "avoid": ["stairs", "narrow_width"]
+      },
+      "wheelchair": {
+        "label": "車椅子",
+        "default_mode": "audio",
+        "weights": {
+          "wheelchair_false": 9999,
+          "robot_caution": 500,
+          "wheelchair_easy": 0.5,
+          "tactile_block": 1.0,
+          "level_change": 20,
+          "crowd_high": 100,
+          "crowd_medium": 30
+        },
+        "prefer": ["wide_width", "gentle_slope"],
+        "avoid": ["stairs", "step", "steep_slope"]
+      },
+      "robot": {
+        "label": "ロボット",
+        "default_mode": "text",
+        "weights": {
+          "wheelchair_false": 9999,
+          "robot_caution": 500,
+          "wheelchair_easy": 1.0,
+          "tactile_block": 1.0,
+          "level_change": 20,
+          "crowd_high": 200,
+          "crowd_medium": 50
+        },
+        "prefer": ["wide_width", "smooth_surface"],
+        "avoid": ["stairs", "crowded", "rough_surface"]
+      },
+      "stroller": {
+        "label": "ベビーカー",
+        "default_mode": "audio",
+        "weights": {
+          "wheelchair_false": 9999,
+          "robot_caution": 500,
+          "wheelchair_easy": 0.6,
+          "tactile_block": 1.0,
+          "level_change": 30,
+          "crowd_high": 100,
+          "crowd_medium": 30
+        },
+        "prefer": ["gentle_slope", "smooth_surface"],
+        "avoid": ["stairs", "step", "rough_surface"]
+      },
+      "suitcase": {
+        "label": "スーツケース",
+        "default_mode": "audio",
+        "weights": {
+          "wheelchair_false": 9999,
+          "robot_caution": 500,
+          "wheelchair_easy": 0.7,
+          "tactile_block": 1.0,
+          "level_change": 25,
+          "crowd_high": 100,
+          "crowd_medium": 30
+        },
+        "prefer": ["smooth_surface"],
+        "avoid": ["stairs", "gravel", "rough_surface"]
+      },
+      "elderly": {
+        "label": "高齢者",
+        "default_mode": "audio",
+        "weights": {
+          "wheelchair_false": 9999,
+          "robot_caution": 500,
+          "wheelchair_easy": 0.8,
+          "tactile_block": 1.0,
+          "level_change": 30,
+          "crowd_high": 150,
+          "crowd_medium": 50
+        },
+        "prefer": ["gentle_slope", "rest_area"],
+        "avoid": ["stairs", "crowded", "long_distance"]
+      }
+    }
+  },
+
+  "graph": {
+    "version": "0.1",
+    "levels": ["B2F", "B1F", "1F", "2F", "3F"],
+    "node_tiers": {
+      "1": { "label": "エレベータ",       "types": ["elevator"] },
+      "2": { "label": "出入口",          "types": ["gate", "exit"] },
+      "3": { "label": "通路の骨格",      "types": ["hall", "junction"] },
+      "4": { "label": "付加的目的地",    "types": ["info", "room"] },
+      "5": { "label": "補助情報",        "types": ["tactile", "stairs", "escalator"] }
+    },
+    "nodes": [
+      { "id": "ELV-JR-E",   "type": "elevator", "level": "1F", "label": "JR東口エレベータ",       "tier": 1, "props": { "wheelchair": true, "robot": true } },
+      { "id": "ELV-JR-E-B1",  "type": "elevator", "level": "B1F","label": "JR東口エレベータ（B1）","tier": 1, "props": { "wheelchair": true, "robot": true } },
+      { "id": "ELV-JR-E-B2",  "type": "elevator", "level": "B2F","label": "JR東口エレベータ（B2）","tier": 1, "props": { "wheelchair": true, "robot": true } },
+      { "id": "ELV-JR-W",   "type": "elevator", "level": "1F", "label": "JR西口エレベータ",       "tier": 1, "props": { "wheelchair": true, "robot": true } },
+      { "id": "ELV-JR-W-B1",  "type": "elevator", "level": "B1F","label": "JR西口エレベータ（B1）","tier": 1, "props": { "wheelchair": true, "robot": true } },
+      { "id": "ELV-KEIO",   "type": "elevator", "level": "3F", "label": "京王エレベータ",         "tier": 1, "props": { "wheelchair": true } },
+      { "id": "ELV-KEIO-2F",  "type": "elevator", "level": "2F", "label": "京王エレベータ（2F）",  "tier": 1, "props": { "wheelchair": true } },
+      { "id": "ELV-KEIO-1F",  "type": "elevator", "level": "1F", "label": "京王エレベータ（1F）",  "tier": 1, "props": { "wheelchair": true } },
+      { "id": "JR-GATE-E",    "type": "gate",   "level": "1F", "label": "JR東口改札",    "tier": 2, "props": { "wheelchair": true, "robot": true } },
+      { "id": "JR-GATE-W",    "type": "gate",   "level": "1F", "label": "JR西口改札",    "tier": 2, "props": { "wheelchair": true, "robot": true } },
+      { "id": "EXIT-EAST",    "type": "exit",   "level": "1F", "label": "東口",          "tier": 2, "props": { "wheelchair": true } },
+      { "id": "EXIT-WEST",    "type": "exit",   "level": "1F", "label": "西口",          "tier": 2, "props": { "wheelchair": true } },
+      { "id": "CONCOURSE-E",  "type": "hall",   "level": "1F", "label": "東コンコース",  "tier": 3, "props": { "wheelchair": true, "width_m": 5.0 } },
+      { "id": "CONCOURSE-W",  "type": "hall",   "level": "1F", "label": "西コンコース",  "tier": 3, "props": { "wheelchair": true, "width_m": 5.0 } },
+      { "id": "CONCOURSE-C",  "type": "hall",   "level": "B1F","label": "中央通路",      "tier": 3, "props": { "wheelchair": true, "width_m": 6.0 } },
+      { "id": "INFO-E",       "type": "info",   "level": "1F", "label": "東口案内所",    "tier": 4, "props": { "wheelchair": true } },
+      { "id": "INFO-W",       "type": "info",   "level": "1F", "label": "西口案内所",    "tier": 4, "props": { "wheelchair": true } },
+      { "id": "TOILET-WC-E",  "type": "room",   "level": "1F", "label": "多機能トイレ（東）","tier": 4, "props": { "wheelchair": true } },
+      { "id": "TOILET-WC-W",  "type": "room",   "level": "1F", "label": "多機能トイレ（西）","tier": 4, "props": { "wheelchair": true } },
+      { "id": "TACTILE-E",    "type": "tactile","level": "1F", "label": "東口点字ブロック","tier": 5, "props": { "blind_navigation": "tactile_block" } },
+      { "id": "TACTILE-W",    "type": "tactile","level": "1F", "label": "西口点字ブロック","tier": 5, "props": { "blind_navigation": "tactile_block" } },
+      { "id": "STAIRS-E",     "type": "stairs", "level": "1F", "label": "東口階段",      "tier": 5, "props": { "wheelchair": false } }
+    ],
+    "edges": [
+      { "id": "e1",  "from": "JR-GATE-E",   "to": "CONCOURSE-E",   "distance_m": 5,  "props": { "wheelchair": "easy", "blind_navigation": "tactile_block", "width_m": 3.0, "surface": "tile" } },
+      { "id": "e2",  "from": "JR-GATE-W",   "to": "CONCOURSE-W",   "distance_m": 5,  "props": { "wheelchair": "easy", "blind_navigation": "tactile_block", "width_m": 3.0, "surface": "tile" } },
+      { "id": "e3",  "from": "CONCOURSE-E", "to": "EXIT-EAST",     "distance_m": 10, "props": { "wheelchair": "easy", "width_m": 3.0 } },
+      { "id": "e4",  "from": "CONCOURSE-W", "to": "EXIT-WEST",     "distance_m": 10, "props": { "wheelchair": "easy", "width_m": 3.0 } },
+      { "id": "e5",  "from": "CONCOURSE-E", "to": "ELV-JR-E",      "distance_m": 15, "props": { "wheelchair": "easy", "robot": "safe", "blind_navigation": "tactile_block", "surface": "tile", "width_m": 2.0 } },
+      { "id": "e6",  "from": "CONCOURSE-W", "to": "ELV-JR-W",      "distance_m": 15, "props": { "wheelchair": "easy", "robot": "safe", "blind_navigation": "tactile_block", "surface": "tile", "width_m": 2.0 } },
+      { "id": "e7",  "from": "ELV-JR-E",    "to": "ELV-JR-E-B1",   "level_change": true, "props": { "wheelchair": "easy", "robot": "safe" } },
+      { "id": "e8",  "from": "ELV-JR-E-B1", "to": "ELV-JR-E-B2",   "level_change": true, "props": { "wheelchair": "easy", "robot": "safe" } },
+      { "id": "e9",  "from": "ELV-JR-E-B1", "to": "CONCOURSE-C",   "distance_m": 15, "props": { "wheelchair": "easy", "robot": "safe", "width_m": 2.0 } },
+      { "id": "e10", "from": "ELV-JR-W",    "to": "ELV-JR-W-B1",   "level_change": true, "props": { "wheelchair": "easy", "robot": "safe" } },
+      { "id": "e11", "from": "ELV-JR-W-B1", "to": "CONCOURSE-C",   "distance_m": 40, "props": { "wheelchair": "easy", "robot": "safe", "width_m": 2.0 } },
+      { "id": "e12", "from": "CONCOURSE-E", "to": "TACTILE-E",     "distance_m": 8,  "props": { "blind_navigation": "tactile_block" } },
+      { "id": "e13", "from": "CONCOURSE-W", "to": "TACTILE-W",     "distance_m": 8,  "props": { "blind_navigation": "tactile_block" } },
+      { "id": "e14", "from": "CONCOURSE-E", "to": "STAIRS-E",      "distance_m": 20, "props": { "wheelchair": false } },
+      { "id": "e15", "from": "CONCOURSE-E", "to": "INFO-E",        "distance_m": 3,  "props": { "wheelchair": "easy" } },
+      { "id": "e16", "from": "CONCOURSE-W", "to": "INFO-W",        "distance_m": 3,  "props": { "wheelchair": "easy" } },
+      { "id": "e17", "from": "CONCOURSE-E", "to": "TOILET-WC-E",   "distance_m": 12, "props": { "wheelchair": "easy", "width_m": 1.5 } },
+      { "id": "e18", "from": "CONCOURSE-W", "to": "TOILET-WC-W",   "distance_m": 12, "props": { "wheelchair": "easy", "width_m": 1.5 } },
+      { "id": "e19", "from": "CONCOURSE-C", "to": "ELV-JR-E-B1",   "distance_m": 15, "props": { "wheelchair": "easy", "robot": "safe", "width_m": 2.0 } },
+      { "id": "e20", "from": "CONCOURSE-C", "to": "ELV-JR-W-B1",   "distance_m": 40, "props": { "wheelchair": "easy", "robot": "safe", "width_m": 2.0 } },
+      { "id": "e21", "from": "CONCOURSE-E", "to": "ELV-KEIO-1F",   "distance_m": 20, "props": { "wheelchair": "easy" } },
+      { "id": "e22", "from": "ELV-KEIO-1F", "to": "ELV-KEIO-2F",   "level_change": true, "props": { "wheelchair": "easy" } },
+      { "id": "e23", "from": "ELV-KEIO-2F", "to": "ELV-KEIO",      "level_change": true, "props": { "wheelchair": "easy" } }
+    ]
+  },
+
+  "qr_map": {
+    "改札東": "JR-GATE-E",
+    "改札西": "JR-GATE-W",
+    "出口東": "EXIT-EAST",
+    "出口西": "EXIT-WEST",
+    "エレベータ東": "ELV-JR-E",
+    "エレベータ西": "ELV-JR-W",
+    "案内所東": "INFO-E",
+    "案内所西": "INFO-W",
+    "トイレ東": "TOILET-WC-E",
+    "トイレ西": "TOILET-WC-W"
+  }
+}
